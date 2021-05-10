@@ -4,6 +4,9 @@
 """
 
 import socket
+from wsgiref.handlers import format_date_time
+from datetime import datetime
+from time import mktime
 
 
 # Определяем хост и порт для сокета
@@ -25,13 +28,32 @@ while True:
     request = client_connection.recv(8192).decode()
     print(request)
 
-    # Получаем содержимое файла index.html
-    file = open('index.html')
-    content = file.read()
-    file.close()
+    # Парсим заголовки запроса
+    headers = request.split('\n')
+    # print(headers)
+    filename = headers[0].split()[1]
+
+    # Get the content of the file
+    if filename == '/':
+        filename = '/index.html'
+    elif '.html' not in filename:
+        filename += '.html'
+
+    # Получаем содержимое запрошенного файла и составляем ответ с заголовками
+    try:
+        file = open(filename[1:])
+        content = file.read()
+        file.close()
+
+        response = """HTTP/1.1 200 OK
+            Server: SelfMadeServer v0.0.1
+            Content-type: text/html
+            Content-length: 5000
+            Date: """ + format_date_time(mktime(datetime.now().timetuple())) + """\nConnection: close\n\n""" + content
+    except FileNotFoundError:
+        response = 'HTTP/1.0 404 NOT FOUND\n\n<h2>Page Not Found!</h2>'
 
     # Отправляем HTTP ответ
-    response = 'HTTP/1.0 200 OK\n\n' + content
     client_connection.sendall(response.encode())
     client_connection.close()
 
